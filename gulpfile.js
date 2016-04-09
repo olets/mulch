@@ -1,18 +1,27 @@
 // Requires
-var gulp = require('gulp'),
-    fs = require('fs'),
-    glob = require('glob'),
+var fs = require('fs'),
     path = require('path'),
+
+    browserSync = require('browser-sync'), // node packages
+    glob = require('glob'),
+    gulp = require('gulp'),
+    cleanCSS = require('gulp-clean-css'),
+    concat = require('gulp-concat'),
     data = require('gulp-data'),
+    foreach = require('gulp-foreach'),
+    less = require('gulp-less'),
     plumber = require('gulp-plumber'),
     rename = require('gulp-rename'),
-    concat = require('gulp-concat'),
-    uglify = require('gulp-uglify'),
-    cleancss = require('gulp-clean-css'),
-    less = require('gulp-less'),
+    sass = require('gulp-sass'),
     twig = require('gulp-twig'),
-    foreach = require('gulp-foreach'),
-    browserSync = require('browser-sync');
+    uglify = require('gulp-uglify'),
+    runSequence = require('run-sequence'),
+    lazypipe = require('lazypipe')
+
+    flags = {
+        preprocessor: 'less'
+    }
+;
 
 
 gulp.task('browser-sync', function() {
@@ -27,20 +36,62 @@ gulp.task('bs-reload', function () {
    browserSync.reload();  
 });
 
-/* LESS */
-gulp.task('less', function(){
-  gulp.src(['src/less/all.less'])
+
+/* Styles */
+var mulchStyles = lazypipe()
+    .pipe(concat, 'all.min.css')
+    .pipe(cleanCSS)
+    .pipe(gulp.dest, 'compiled/styles/')
+    .pipe(browserSync.reload, { stream: true })
+;
+gulp.task('styles-less', function(){
+  gulp.src('src/styles/all.less')
     .pipe(plumber({
       errorHandler: function (error) {
         console.log(error.message);
         this.emit('end');
     }}))
     .pipe(less())
-    .pipe(concat('all.min.css'))
-    .pipe(cleancss())
-    .pipe(gulp.dest('compiled/styles/'))
-    .pipe(browserSync.reload({stream:true}))
+    .pipe(mulchStyles())
 });
+gulp.task('styles-scss', function() { // sass (choose by running 'gulp sass mulch')
+    gulp.src('src/styles/all.scss')
+        .pipe(plumber({
+            errorHandler: function(error) {
+                console.log(error.message);
+                this.emit('end');
+            }
+        }))
+        .pipe(sass())
+        .pipe(mulchStyles())
+});
+gulp.task('styles-sass', function() { // sass (choose by running 'gulp sass mulch')
+    gulp.src('src/styles/all.sass')
+        .pipe(plumber({
+            errorHandler: function(error) {
+                console.log(error.message);
+                this.emit('end');
+            }
+        }))
+        .pipe(sass())
+        .pipe(mulchStyles())
+});
+gulp.task('scss', function () {
+    flags.preprocessor = 'scss'
+});
+gulp.task('sass', function () {
+    flags.preprocessor = 'sass'
+});
+gulp.task('styles', function() {
+    if ( flags.preprocessor == 'scss' ) {
+        runSequence('styles-scss')
+    } else if (flags.preprocessor == 'sass') {
+        runSequence('styles-sass')
+    } else {
+        runSequence('styles-less')
+    }
+});
+gulp.task('styles-watch',['styles'],browserSync.reload);
 
 
 /* Twig Templates */
@@ -89,10 +140,10 @@ gulp.task('scripts-watch',['scripts'],browserSync.reload);
 
 
 /* Mulch */
-gulp.task('mulch-compile',['less','scripts','twig']);
+gulp.task('mulch-compile',['styles','scripts','twig']);
 
-gulp.task('mulch',['mulch-compile','browser-sync'],function(){
-    gulp.watch("src/less/**/*.less", ['less']);
+gulp.task('mulch',['mulch-compile','browser-sync'],function(less){
+    gulp.watch('src/styles/**/*.+(less|scss|sass)', ['styles-watch']);
     gulp.watch("src/scripts/**/*.js", ['scripts-watch']);
     gulp.watch(['src/templates/**/*.html','src/data/*.json'],['twig-watch']);
 });
