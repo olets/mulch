@@ -32,6 +32,7 @@
     "gulp-rename": "^1.2.2",
     "gulp-twig": "olets/gulp-twig.git#update-dependencies",
     "gulp-uglify": "^1.5.1",
-    "run-sequence": "^1.2.1"
+    "run-sequence": "^1.2.1",
+    "vinyl-ftp": "^0.4.5"
   }
 }

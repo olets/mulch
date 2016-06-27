@@ -1,3 +1,6 @@
+/* Set your static subdirectory here (ex 'vonhof')*/
+var ACCT_DIR = '';
+
 // Requires
 var gulp = require('gulp'),
 
@@ -10,6 +13,7 @@ var gulp = require('gulp'),
     data = require('gulp-data'),
     del = require('del'),
     foreach = require('gulp-foreach'),
+    ftp = require('vinyl-ftp'),
     imagemin = require('gulp-imagemin'),
     less = require('gulp-less'),
     plumber = require('gulp-plumber'),
@@ -19,6 +23,23 @@ var gulp = require('gulp'),
     path = require('path'),
     runSequence = require('run-sequence');
 
+if(ACCT_DIR.length > 0) {
+    gulp.task('deploy',function(){
+
+        var conn = ftp.create( {
+            host:     'static.nmcstaging.com',
+            user:     'frontendstatic',
+            password: "UVCPY>p'd5uyn*gm",
+            parallel: 10
+        } );
+
+        var globs = ['compiled/**'];
+
+        return gulp.src( globs, { base: 'compiled', buffer: false } )
+            .pipe( conn.newer( '/public_html/'+ACCT_DIR ) ) // only upload newer files
+            .pipe( conn.dest( '/public_html/'+ACCT_DIR ) );
+    });
+}
 
 gulp.task('browser-sync', function() {
     browserSync.init({
