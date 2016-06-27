@@ -1,18 +1,23 @@
 // Requires
 var gulp = require('gulp'),
+
     fs = require('fs'),
+    browserSync = require('browser-sync'),
     glob = require('glob'),
-    path = require('path'),
+    changed = require('gulp-changed'),
+    cleancss = require('gulp-clean-css'),
+    concat = require('gulp-concat'),
     data = require('gulp-data'),
+    del = require('del'),
+    foreach = require('gulp-foreach'),
+    imagemin = require('gulp-imagemin'),
+    less = require('gulp-less'),
     plumber = require('gulp-plumber'),
     rename = require('gulp-rename'),
-    concat = require('gulp-concat'),
-    uglify = require('gulp-uglify'),
-    cleancss = require('gulp-clean-css'),
-    less = require('gulp-less'),
     twig = require('gulp-twig'),
-    foreach = require('gulp-foreach'),
-    browserSync = require('browser-sync');
+    uglify = require('gulp-uglify'),
+    path = require('path'),
+    runSequence = require('run-sequence');
 
 
 gulp.task('browser-sync', function() {
@@ -72,6 +77,34 @@ gulp.task('twig',function(){
 });
 gulp.task('twig-watch',['twig'],browserSync.reload);
 
+/* Images */
+gulp.task('images-compress', function(){
+    return gulp.src('src/images/*')
+        .pipe(plumber({
+          errorHandler: function (error) {
+            console.log(error.message);
+            this.emit('end');
+        }}))
+        .pipe(changed('compiled/images'))
+        .pipe(imagemin({
+            progressive: true,
+            svgoPlugins: [
+                {removeViewBox: false},
+                {cleanupIDs: false}
+            ]
+        }))
+        .pipe(gulp.dest('src/images'));
+});
+gulp.task('images', ['images-compress'], function() {
+    return gulp.src('src/images/*')
+        .pipe(plumber({
+          errorHandler: function (error) {
+            console.log(error.message);
+            this.emit('end');
+        }}))
+        .pipe(changed('compiled/images'))
+        .pipe(gulp.dest('compiled/images'))
+});
 
 /* Scripts */
 gulp.task('scripts', function(){
@@ -89,10 +122,22 @@ gulp.task('scripts-watch',['scripts'],browserSync.reload);
 
 
 /* Mulch */
-gulp.task('mulch-compile',['less','scripts','twig']);
+gulp.task('mulch-compile',['less','scripts','twig','images']);
 
-gulp.task('mulch',['mulch-compile','browser-sync'],function(){
+gulp.task('mulch-clean', function(){
+    del('compiled/')
+});
+
+gulp.task('mulch-process', function(){
+    runSequence('mulch-clean','mulch-compile','browser-sync');
+});
+
+gulp.task('mulch',['mulch-process'],function(){
     gulp.watch("src/less/**/*.less", ['less']);
     gulp.watch("src/scripts/**/*.js", ['scripts-watch']);
-    gulp.watch(['src/templates/**/*','src/data/*.json'],['twig-watch']);
+    gulp.watch(['src/templates/**/*.html','src/data/*.json'],['twig-watch']);
+    var watchImages = gulp.watch('src/images/*', ['images']);
+    watchImages.on('change', function(ev) {
+        del(path.relative('', ev.path).replace('src/images','compiled/images'));
+    });
 });
